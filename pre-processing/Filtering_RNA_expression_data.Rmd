@@ -1,0 +1,121 @@
+---
+title: "Filtering raw RNA expression data"
+output: html_document
+date: "2023-06-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Feature counts filtering
+
+Reading the first table from raw data set
+```{r}
+feature_count_20 = read.delim("GSM1536837_01_27_15_TCGA_20.Illumina.tumor_Rsubread_FeatureCounts.txt", header = TRUE, sep = "\t", dec = ".")
+```
+
+```{r}
+head(feature_count_20)
+```
+
+Reading required samples ID
+```{r}
+# Loading
+library("readxl")
+
+# xlsx files
+samples <- read_excel("Dataset 1.xlsx")
+head(samples)
+```
+
+```{r}
+samples = samples$SAMPLE
+samples =  gsub("-", ".", samples)
+head(samples)
+```
+
+Calculate existing IDs in data set
+```{r}
+names.use <- names(feature_count_20)[(substr(names(feature_count_20), 1,16)%in% samples)]
+names.use
+feature_count_20.subset <- feature_count_20[, names.use]
+head(feature_count_20.subset)
+```
+
+Calculating unexisting IDs in data set
+```{r}
+names.not_found <- samples[!samples %in% (substr(names(feature_count_20.subset), 1,16) )]
+names.not_found
+```
+
+Reading the second table from raw data set
+```{r}
+feature_count_24 = read.delim("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts.txt", header = TRUE, sep = "\t", dec = ".")
+```
+
+```{r}
+names.use <- names(feature_count_24)[(substr(names(feature_count_24), 1,16)%in% samples)]
+names.use
+feature_count_24.subset <- feature_count_24[, names.use]
+head(feature_count_24.subset)
+```
+
+Reading the third table from raw data set
+```{r}
+feature_count_normal = read.delim("GSM1697009_06_01_15_TCGA_24.normal_Rsubread_FeatureCounts.txt", header = TRUE, sep = "\t", dec = ".")
+```
+
+```{r}
+head(feature_count_normal)
+```
+
+
+```{r}
+names.use <- names(feature_count_normal)[(substr(names(feature_count_normal), 1,16)%in% samples)]
+names.use
+feature_count_normal.subset <- feature_count_normal[, names.use]
+head(feature_count_normal.subset)
+```
+
+Chech if second table contains all required IDs
+```{r}
+substr(names(feature_count_24.subset), 1,16)%in% samples
+```
+
+Transorm data frame before saving in file
+```{r}
+feature_count_24.subset = cbind(Gene = feature_count_24$X, feature_count_24.subset, row.names = NULL)
+head(feature_count_24.subset)
+```
+
+
+```{r}
+new_colunm_names = colnames(feature_count_24.subset)
+new_colunm_names
+```
+
+
+```{r}
+new_colunm_names = chartr(".", "-", new_colunm_names)
+new_colunm_names
+```
+
+
+```{r}
+colnames(feature_count_24.subset) = new_colunm_names
+head(feature_count_24.subset)
+```
+
+Export data frame to file
+```{r}
+write.table(feature_count_24.subset, file = "GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts_filtered.txt", sep = "\t",
+            row.names = FALSE, col.names = TRUE, quote=FALSE)
+```
+
+## Expression data FPKM
+
+
+```{r}
+Rsubread_FPKM_24 = read.delim("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FPKM.txt", header = TRUE, sep = "\t", dec = ".")
+```
+
