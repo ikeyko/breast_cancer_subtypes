@@ -1,0 +1,316 @@
+---
+title: "Batch_correction"
+output: pdf_document
+date: "2023-06-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#load neccessary libraries
+library("sva") #Note this exercise requires sva (>= v3.36.0) which is only available for R (>= v4.x)
+library("ggplot2")
+library("gridExtra")
+library("edgeR")
+library("UpSetR")
+```
+```{r}
+#load in the uncorrected data as raw counts
+uncorrected_data = read.table("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts_filtered.txt", header=TRUE, sep="\t", as.is=c(1,2))
+head(uncorrected_data)
+```
+
+```{r}
+sample_names = names(uncorrected_data)[2:length(names(uncorrected_data))]
+head(sample_names)
+```
+```{r}
+sample_names.formated = chartr(".", "-", substr(sample_names, 1,16))
+head(sample_names.formated)
+```
+
+Loading of clinical data
+```{r}
+# Loading
+library("readxl")
+
+# xlsx files
+clinical_data <- read_excel("Dataset 1.xlsx")
+head(clinical_data)
+```
+
+
+Order clinical data as in raw expression data
+```{r}
+clinical_data = clinical_data[order(factor(clinical_data$SAMPLE, levels=unique(sample_names.formated))),]
+```
+
+
+```{r}
+p <- ggplot(uncorrected_data, aes(x=dose, y = Gene)) + 
+  geom_boxplot()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Get radiation class
+```{r}
+radiation_class = clinical_data[clinical_data$SAMPLE %in% sample_names.formated, ]$`RADIATION CLASS`
+head(radiation_class)
+```
+
+```{r}
+molecular_profiling = clinical_data[clinical_data$SAMPLE %in% sample_names.formated, ]$`MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT`
+head(molecular_profiling)
+```
+
+```{r}
+radiation_response = clinical_data[clinical_data$SAMPLE %in% sample_names.formated, ]$`RADIATION RESPONSE`
+head(radiation_response)
+```
+
+```{r}
+radiation_response
+```
+
+
+```{r}
+cancer_type = clinical_data[clinical_data$SAMPLE %in% sample_names.formated, ]$`CANCER TYPE`
+head(cancer_type)
+```
+
+```{r}
+gender = clinical_data[clinical_data$SAMPLE %in% sample_names.formated, ]$GENDER
+head(gender)
+```
+
+
+```{r}
+#calculate principal components for the uncorrected data
+pca_uncorrected_obj = prcomp(uncorrected_data[ ,sample_names])
+#pull PCA values out of the PCA object
+pca_uncorrected = as.data.frame(pca_uncorrected_obj[2]$rotation)
+#assign labels to the data frame
+#pca_uncorrected[,"radiation_class"] = radiation_class
+pca_uncorrected[,"molecular_profiling"] = molecular_profiling
+#pca_uncorrected[,"radiation_response"] = radiation_response
+pca_uncorrected[,"cancer_type"] = cancer_type
+#pca_uncorrected[,"gender"] = gender
+
+#plot the PCA
+#create a classic 2-dimension PCA plot (first two principal components) with conditions and library methods indicated
+#cols <- c("Sensitive" = "#481567FF", "Resistant" = "#1F968BFF")
+p1 = ggplot(data=pca_uncorrected, aes(x=PC1, y=PC2, color=cancer_type, shape=molecular_profiling))
+p1 = p1 + geom_point(size=3)
+p1 = p1 + stat_ellipse(type="norm", linetype=2)
+p1 = p1 + labs(title="PCA, RNA-seq feature counts for radiation sensitive and resistant samples \n
+               (uncorrected data)", color="cancer_type", shape="molecular_profiling")
+#p1 = p1 + scale_colour_manual(values = cols)
+```
+
+```{r}
+p1
+```
+
+## Perform the batch correction
+
+First we need to transform the format of our groups and batches from names (e.g. "sensitive", "resistant", etc.) to numbers (e.g. 1, 2, etc.)
+```{r}
+#in the command below "sapply" is used to apply the "switch" command to each element and convert names to numbers as we define
+groups = sapply(as.character(radiation_class), switch, "Sensitive" = 1, "Resistant" = 2, USE.NAMES = F)
+#batches = sapply(as.character(radiation_response), switch, "Complete Response" = 1, "Partial Response" = 2, "Stable Disease" = 3, "Radiographic Progressive Disease" = 4, USE.NAMES = F)
+batches = sapply(as.character(gender), switch, "MALE" = 1, "FEMALE" = 2, USE.NAMES = F)
+```
+
+
+```{r}
+#now run ComBat_seq
+corrected_data = ComBat_seq(counts = as.matrix(uncorrected_data[,sample_names]), batch = batches, group = groups)
+#join the gene onto the now corrected counts from ComBat_seq
+corrected_data = cbind(uncorrected_data[,c("Gene")], corrected_data)
+#compare dimensions of corrected and uncorrected data sets
+dim(uncorrected_data)
+dim(corrected_data)
+```
+
+
+```{r}
+#visually compare values of corrected and uncorrected data sets
+head(uncorrected_data)
+```
+
+
+```{r}
+corrected_data = data.frame(corrected_data)
+corrected_data[, 2:length(names(corrected_data))] <- sapply(corrected_data[, 2:length(names(corrected_data))], as.numeric)
+head(corrected_data)
+```
+
+
+## Perform PCA analysis on the batch corrected data and contrast with the uncorrected data
+
+```{r}
+#calculate principal components for the uncorrected data
+pca_corrected_obj = prcomp(corrected_data[,sample_names])
+
+#pull PCA values out of the PCA object
+pca_corrected = as.data.frame(pca_corrected_obj[2]$rotation)
+
+pca_uncorrected[,"radiation_class"] = radiation_class
+pca_uncorrected[,"gender"] = gender
+
+#plot the PCA
+#create a classic 2-dimension PCA plot (first two principal components) with conditions and library methods indicated
+cols <- c("Sensitive" = "#481567FF", "Resistant" = "#1F968BFF")
+p2 = ggplot(data=pca_corrected, aes(x=PC1, y=PC2, color=radiation_class, shape=gender))
+p2 = p2 + geom_point(size=3)
+p2 = p2 + stat_ellipse(type="norm", linetype=2)
+p2 = p2 + labs(title="PCA, RNA-seq feature counts for radiation sensitive and resistant samples \n
+               (corrected data)", color="Radiation class", shape="Gender")
+p2 = p2 + scale_colour_manual(values = cols)
+p2
+```
+## Only for BRCA data
+
+
+
+
+```{r}
+clinical_data.BRCA = clinical_data[clinical_data$`CANCER TYPE` == "BRCA", ]
+clinical_data.BRCA = clinical_data.BRCA[!is.na(clinical_data.BRCA$`MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT`),]
+head(clinical_data.BRCA)
+```
+
+
+
+```{r}
+sample_names.BRCA = sample_names[sample_names.formated %in% clinical_data.BRCA$SAMPLE]
+
+```
+
+
+```{r}
+uncorrected_data.BRCA = uncorrected_data[ , names(uncorrected_data) %in% sample_names.BRCA]
+uncorrected_data.BRCA = cbind(Gene = uncorrected_data$Gene, uncorrected_data.BRCA, row.names = NULL)
+head(uncorrected_data.BRCA)
+```
+
+```{r}
+sample_names.formated.BRCA = sample_names.formated[sample_names.formated %in% clinical_data.BRCA$SAMPLE]
+
+head(sample_names.formated.BRCA)
+```
+
+Order clinical data as in raw expression data
+```{r}
+clinical_data.BRCA = clinical_data[order(factor(clinical_data$SAMPLE, levels=unique(sample_names.formated.BRCA))),]
+```
+
+Get radiation class
+```{r}
+radiation_class.BRCA = clinical_data.BRCA[clinical_data.BRCA$SAMPLE %in% sample_names.formated.BRCA, ]$`RADIATION CLASS`
+head(radiation_class.BRCA)
+```
+
+```{r}
+molecular_profiling.BRCA = clinical_data.BRCA[clinical_data.BRCA$SAMPLE %in% sample_names.formated.BRCA, ]$`MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT`
+head(molecular_profiling.BRCA)
+```
+
+```{r}
+#calculate principal components for the uncorrected data
+pca_uncorrected_obj.BRCA = prcomp(uncorrected_data.BRCA[ ,sample_names.BRCA])
+#pull PCA values out of the PCA object
+pca_uncorrected.BRCA = as.data.frame(pca_uncorrected_obj.BRCA[2]$rotation)
+#assign labels to the data frame
+pca_uncorrected.BRCA[,"radiation_class"] = radiation_class.BRCA
+pca_uncorrected.BRCA[,"molecular_profiling"] = molecular_profiling.BRCA
+#pca_uncorrected[,"radiation_response"] = radiation_response
+#pca_uncorrected[,"radiation_class"] = cancer_type
+#pca_uncorrected[,"gender"] = gender
+
+#plot the PCA
+#create a classic 2-dimension PCA plot (first two principal components) with radiation class and ... indicated
+cols <- c("Sensitive" = "#481567FF", "Resistant" = "#1F968BFF")
+p1 = ggplot(data=pca_uncorrected.BRCA, aes(x=PC1, y=PC2, color=radiation_class.BRCA, shape=molecular_profiling.BRCA))
+p1 = p1 + geom_point(size=3)
+p1 = p1 + stat_ellipse(type="norm", linetype=2)
+p1 = p1 + labs(title="PCA, RNA-seq feature counts for radiation sensitive and resistant samples \n
+               (uncorrected data)", color="Radiation class", shape="Molecular profiling")
+p1 = p1 + scale_colour_manual(values = cols)
+```
+
+```{r}
+p1
+```
+
+## Perform the batch correction
+
+First we need to transform the format of our groups and batches from names (e.g. "sensitive", "resistant", etc.) to numbers (e.g. 1, 2, etc.)
+```{r}
+#in the command below "sapply" is used to apply the "switch" command to each element and convert names to numbers as we define
+groups.BRCA = sapply(as.character(radiation_class.BRCA), switch, "Sensitive" = 1, "Resistant" = 2, USE.NAMES = F)
+#batches = sapply(as.character(radiation_response), switch, "Complete Response" = 1, "Partial Response" = 2, "Stable Disease" = 3, "Radiographic Progressive Disease" = 4, USE.NAMES = F)
+batches.BRCA = sapply(as.character(molecular_profiling.BRCA), switch, "Before" = 1, "After" = 2, USE.NAMES = F, drop = FALSE)
+```
+
+```{r}
+batches.BRCA = unlist(batches.BRCA)
+batches.BRCA
+```
+
+
+```{r}
+#now run ComBat_seq
+corrected_data.BRCA = ComBat_seq(counts = as.matrix(uncorrected_data.BRCA[,sample_names.BRCA]), batch = batches.BRCA, group = groups.BRCA)
+#join the gene onto the now corrected counts from ComBat_seq
+corrected_data.BRCA = cbind(uncorrected_data.BRCA[,c("Gene")], corrected_data.BRCA)
+#compare dimensions of corrected and uncorrected data sets
+dim(uncorrected_data.BRCA)
+dim(corrected_data.BRCA)
+```
+
+
+# Analyzing and visualizing TCGA data
+
+## Preprocessing of Gene Expression data (IlluminaHiSeq_RNASeqV2)
+
+```{r}
+# Query platform Illumina HiSeq with a list of barcode 
+query <- GDCquery(
+    project = "TCGA-BRCA", 
+    data.category = "Transcriptome Profiling",
+    data.type = "Gene Expression Quantification",
+    barcode = listSamples
+)
+
+# Download a list of barcodes with platform IlluminaHiSeq_RNASeqV2
+GDCdownload(query)
+
+# Prepare expression matrix with geneID in the rows and samples (barcode) in the columns
+# rsem.genes.results as values
+BRCA.Rnaseq.SE <- GDCprepare(query)
+
+BRCAMatrix <- assay(BRCA.Rnaseq.SE,"unstranded") 
+# For gene expression if you need to see a boxplot correlation and AAIC plot to define outliers you can run
+BRCA.RNAseq_CorOutliers <- TCGAanalyze_Preprocessing(BRCA.Rnaseq.SE)
+```
+
+
+
+
