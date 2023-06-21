@@ -116,6 +116,6 @@ write.table(feature_count_24.subset, file = "GSM1536837_06_01_15_TCGA_24.tumor_R
 
 
 ```{r}
-Rsubread_FPKM_24 = read.delim("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FPKM.txt", header = TRUE, sep = "\t", dec = ".")
+Rsubread_FPKM_24 = read.delim("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_TPM.txt ", header = TRUE, sep = "\t", dec = ".")
 ```
 
