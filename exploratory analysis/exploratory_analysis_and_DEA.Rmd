@@ -284,9 +284,322 @@ A final diagnosis is to check the biological reproducibility of the sample repli
 library(DESeq2)
 vsd <- vst(dds)
 DESeq2::plotPCA(vsd, ntop = 100, intgroup = 'RADIATION.CLASS') + 
-  ylim(-50, 50) + theme_bw()
+  ylim(-50, 50) + theme_bw() + geom_point(size=0.5)
 ```
 
+## Differential expression analysis (only for BRCA)
+
+```{r}
+clinical_data.BRCA = clinical_data[clinical_data$`CANCER TYPE` == "BRCA", ]
+sample_names.BRCA = sample_names[sample_names.formated %in% clinical_data.BRCA$SAMPLE]
+countData = read.table("GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts_filtered.txt", header=TRUE, sep="\t", as.is=c(1,2))
+countData.BRCA = countData[ , names(countData) %in% sample_names.BRCA]
+head(countData.BRCA)
+```
+
+```{r}
+row_names = countData$Gene
+rownames(countData.BRCA) = row_names
+head(countData.BRCA)
+```
+
+```{r}
+clinical_data.BRCA
+```
+Check available variables
+```{r}
+library(ggplot2)
+factor_columns = c("RADIATION RESPONSE", "RADIATION CLASS", 
+                   "MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT",
+                   "RACE", "HISTOLOGY", "LOCATION", "PATHOLOGIC STAGE", 
+                   "PATHOLOGIC T", "PATHOLOGIC N", "PATHOLOGIC M")
+
+clinical_data.BRCA |> 
+  ggplot(aes(`RADIATION RESPONSE`, fill = `RADIATION RESPONSE`)) + 
+  geom_bar() + 
+  ggtitle('Classes of RADIATION RESPONSE') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`RADIATION CLASS`, fill = `RADIATION CLASS`)) + 
+  geom_bar() + 
+  ggtitle('Classes of RADIATION CLASS') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT`, fill = `MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT`)) + 
+  geom_bar() + 
+  ggtitle('Classes of MOLECULAR PROFILING') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`RACE`, fill = `RACE`)) + 
+  geom_bar() + 
+  ggtitle('Classes of RACE') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`HISTOLOGY`, fill = `HISTOLOGY`)) + 
+  geom_bar() + 
+  ggtitle('Classes of HISTOLOGY') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`LOCATION`, fill = `LOCATION`)) + 
+  geom_bar() + 
+  ggtitle('Classes of LOCATION') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) 
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`PATHOLOGIC STAGE`, fill = `PATHOLOGIC STAGE`)) + 
+  geom_bar() + 
+  ggtitle('Classes of PATHOLOGIC STAGE') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`PATHOLOGIC T`, fill = `PATHOLOGIC T`)) + 
+  geom_bar() + 
+  ggtitle('Classes of PATHOLOGIC T') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`PATHOLOGIC N`, fill = `PATHOLOGIC N`)) + 
+  geom_bar() + 
+  ggtitle('Classes of PATHOLOGIC N') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+clinical_data.BRCA |> 
+  ggplot(aes(`PATHOLOGIC M`, fill = `PATHOLOGIC M`)) + 
+  geom_bar() + 
+  ggtitle('Classes of PATHOLOGIC M') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+
+colData.BRCA = data.frame(clinical_data.BRCA[c("HISTOLOGY", "RADIATION CLASS", "RADIATION RESPONSE",
+                                               "MOLECULAR PROFILING BEFORE OR AFTER RADIATION TREATMENT",
+                                               "PATHOLOGIC STAGE", "RACE")])
+rownames(colData.BRCA) = sample_names.BRCA
+colData.BRCA
+```
+
+```{r}
+methilation_data = read.table("Methylation_data_filtered.txt", header=TRUE, sep="\t", as.is=c(1,2))
+head(methilation_data)
+```
+```{r}
+colnames_methyl_data = colnames(methilation_data)[-1]
+colnames_methyl_data
+```
+```{r}
+colData.BRCA.filtered =  colData.BRCA[substr(rownames(colData.BRCA), 1, 15) %in% colnames_methyl_data, ]g
+colData.BRCA.filtered
+```
+
+```{r}
+colData.BRCA.filtered |> 
+  ggplot(aes(`HISTOLOGY`, fill = `HISTOLOGY`)) + 
+  geom_bar() + 
+  ggtitle('Classes of HISTOLOGY') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+
+Data filtering: leave only two types of carcinoma
+```{r}
+histology_names = c("Infiltrating Ductal Carcinoma", "Infiltrating Lobular Carcinoma")
+colData.BRCA.filtered =  colData.BRCA.filtered[colData.BRCA.filtered$HISTOLOGY %in% histology_names, , drop = FALSE]
+colData.BRCA.filtered$HISTOLOGY = chartr(" ", "_", colData.BRCA.filtered$HISTOLOGY)
+colData.BRCA.filtered
+```
+Additional filtering to reduce noise
+```{r}
+pathologic_stage = c("Stage I", "Stage II", "Stage III")
+colData.BRCA.filtered =  colData.BRCA.filtered[colData.BRCA.filtered$MOLECULAR.PROFILING.BEFORE.OR.AFTER.RADIATION.TREATMENT == "After", ]
+colData.BRCA.filtered =  colData.BRCA.filtered[colData.BRCA.filtered$RADIATION.RESPONSE == "Complete Response", ]
+colData.BRCA.filtered$PATHOLOGIC.STAGE[colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IA" | colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IB"] = "Stage I"
+colData.BRCA.filtered$PATHOLOGIC.STAGE[colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IIA" | colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IIB"] = "Stage II"
+colData.BRCA.filtered$PATHOLOGIC.STAGE[colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IIIA" | 
+                                         colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IIIB" | 
+                                         colData.BRCA.filtered$PATHOLOGIC.STAGE == "Stage IIIC"] = "Stage III"
+colData.BRCA.filtered =  colData.BRCA.filtered[colData.BRCA.filtered$PATHOLOGIC.STAGE %in% pathologic_stage, ]
+na.omit(colData.BRCA.filtered)
+colData.BRCA.filtered
+```
+
+
+
+```{r}
+colData.BRCA.filtered |> 
+  ggplot(aes(`MOLECULAR.PROFILING.BEFORE.OR.AFTER.RADIATION.TREATMENT`, fill = `MOLECULAR.PROFILING.BEFORE.OR.AFTER.RADIATION.TREATMENT`)) + 
+  geom_bar() + 
+  ggtitle('Classes of PATHOLOGIC STAGE') + 
+  geom_text(aes(label = after_stat(count)), stat = 'count', vjust = 0) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+
+```{r}
+library(dplyr)
+colData.BRCA.filtered %>% dplyr::count(HISTOLOGY)
+```
+
+Adjust samples to count data
+```{r}
+countData.BRCA.filtered = countData.BRCA[ , names(countData.BRCA) %in% rownames(colData.BRCA.filtered)]
+head(countData.BRCA.filtered) 
+```
+
+
+
+
+
+
+```{r}
+# define the design formula
+designFormula <- "~ HISTOLOGY"
+#designFormula <- "~ RADIATION.CLASS"
+
+# Run DESeq2
+library(DESeq2)
+library(stats)
+#create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = countData.BRCA.filtered, 
+                              colData = colData.BRCA.filtered, 
+                              design = as.formula(designFormula))
+#print dds object to see the contents
+print(dds)
+```
+
+### Pre-filtering
+While it is not necessary to pre-filter low count genes before running the DESeq2 functions, there are two reasons which make pre-filtering useful: by removing rows in which there are very few reads, we reduce the memory size of the dds data object, and we increase the speed of the transformation and testing functions within DESeq2. It can also improve visualizations, as features with no information for differential expression are not plotted.
+```{r}
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+```
+
+
+
+```{r}
+#For each gene, we count the total number of reads for that gene in all samples 
+#and remove those that don't have at least 1 read. 
+dds <- dds[ rowSums(DESeq2::counts(dds)) > 1, ]
+dds <- DESeq(dds)
+#compute the contrast for the 'group' variable where 'Sensitive' 
+#samples are used as the control group. 
+DEresults = results(dds, contrast = c("HISTOLOGY", 'Infiltrating_Lobular_Carcinoma', 'Infiltrating_Ductal_Carcinoma'))
+#DEresults = results(dds, contrast = c("RADIATION.CLASS", 'Sensitive', 'Resistant'))
+
+#sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue),]
+#shows a summary of the results
+print(DEresults)
+```
+### MA-plot
+
+```{r}
+library(DESeq2)
+DESeq2::plotMA(object = dds, ylim = c(-9, 9))
+```
+
+```{r}
+resApeT <- lfcShrink(dds, coef=2, type="apeglm", lfcThreshold=1)
+plotMA(resApeT, ylim=c(-11,11), cex=.8)
+abline(h=c(-1,1), col="dodgerblue", lwd=2)
+```
+
+```{r}
+resApeT
+```
+
+
+### P-value distribution
+
+```{r}
+library(ggplot2)
+ggplot(data = as.data.frame(DEresults), aes(x = pvalue)) + 
+  geom_histogram(bins = 100)
+```
+How to interpret p-value distributions: http://varianceexplained.org/statistics/interpreting-pvalue-histogram/
+
+
+We can summarize some basic tallies using the summary function.
+```{r}
+summary(DEresults)
+```
+How many adjusted p-values were less than 0.1?
+```{r}
+sum(DEresults$padj < 0.05, na.rm=TRUE)
+```
+```{r}
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+### Plot counts
+It can also be useful to examine the counts of reads for a single gene across the groups. A simple function for making this plot is plotCounts, which normalizes counts by the estimated size factors (or normalization factors if these were used) and adds a pseudocount of 1/2 to allow for log scale plotting. The counts are grouped by the variables in intgroup, where more than one variable can be specified. Here we specify the gene which had the smallest p value from the results table created above. You can select the gene to plot by rowname or by numeric index.
+```{r}
+d <- plotCounts(dds, gene=which.min(DEresults$padj), intgroup="HISTOLOGY", 
+                returnData=TRUE)
+library("ggplot2")
+ggplot(d, aes(x=HISTOLOGY, y=count)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
+```
+
+
+
+### PCA plot
+
+```{r}
+library(DESeq2)
+vsd <- vst(dds)
+#rld <- rlog(dds)
+#pcaData = DESeq2::plotPCA(vsd, ntop = 500, intgroup = c('HISTOLOGY','RACE'), returnData = TRUE) 
+pcaData = DESeq2::plotPCA(vsd, ntop = 100, intgroup = c('HISTOLOGY'), returnData = TRUE) 
+DESeq2::plotPCA(vsd, ntop = 100, intgroup = 'HISTOLOGY') +  
+  ylim(-50, 50) + theme_bw() + geom_point(size=0.5)
+pcaData
+```
+
+```{r}
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData, aes(x= PC1, y = PC2))+
+  geom_point(size= 3, aes(shape=HISTOLOGY, color=PATHOLOGIC.STAGE)) +
+  #scale_fill_manual(values = c("#E69F00", "#56B4E9"))+
+  #scale_shape_manual(values=c(21, 23, 25))+
+  #geom_text_repel(size= 3.5, aes(label=Donor, colour=Donor))+ 
+  scale_color_discrete()+
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  ggtitle("PCA with Scaled data")
+```
+
+```{r}
+vsd
+```
+
+
+
+```{r fig2, fig.height = 7, fig.width = 25, fig.align = "center"}
+pheatmap(tpm.BRCA[selectedGenes,], scale = 'row', 
+         show_rownames = FALSE, 
+         annotation_col = metadata, fontsize_col = 5)
+```
 
 
 
