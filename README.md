@@ -10,3 +10,6 @@ DESeq2, limma, MLSeq, randomForest, clusterProfiler, missMethyl, org.Hs.eg.db, I
 
 ## Requiered Python packages
 scikit-learn, pandas, seaborn, matplotlib
+
+## Notes
+Add raw RNA-seq data (GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts.txt) and clinical data (clinical) in folder data/raw/ , add methylation data (methyl) in folder data/raw/breast/ .
