@@ -12,4 +12,7 @@ DESeq2, limma, MLSeq, randomForest, clusterProfiler, missMethyl, org.Hs.eg.db, I
 scikit-learn, pandas, seaborn, matplotlib
 
 ## Notes
-Add raw RNA-seq data (GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts.txt) and clinical data (clinical) in folder data/raw/ , add methylation data (methyl) in folder data/raw/breast/ .
+Add raw RNA-seq data (GSM1536837_06_01_15_TCGA_24.tumor_Rsubread_FeatureCounts.txt) and clinical data (clinical) in folder data/raw/.
+Add methylation data (methyl) in folder data/raw/breast/.
+Filtered data Methylation_data_BRCA_filtered.txt and RNA_FeatureCounts_filtered.txt have to be produced through filtering from raw data and be saved in folder data/filtered/.
+Other processed data is fully available in folder data/processed/.
